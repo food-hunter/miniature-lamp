@@ -63,11 +63,36 @@ Build commands:
 ./gradlew assembleDebug
 ```
 
+### WiFi Hotspot Automation
+
+The app uses different strategies to enable WiFi hotspot depending on Android version:
+
+#### **Android 7.x and Earlier**
+- **Full Automation**: Uses reflection to directly control the WiFi hotspot
+- Hotspot is automatically enabled/disabled based on device proximity
+
+#### **Android 8.0 - 12.x**
+- **LocalOnlyHotspot API**: Automatically creates a temporary local hotspot
+- No user interaction required
+- Automatically generated SSID and password
+- Limited to local subnet devices
+- Hotspot is managed by the system and automatically cleaned up
+
+#### **Android 13+**
+- **Settings Panel Integration**: Opens quick settings panel for easy manual control
+- Provides fastest path to hotspot controls
+- One-tap access when device is in range
+
+#### **Fallback Behavior**
+- If automation fails, the app opens the hotspot settings page
+- Provides clear guidance for manual setup
+- Ensures functionality on all device manufacturers
+
 ### Important Notes
 
-- **Android 8.0+ Limitations**: Starting from Android 8.0 (API level 26), apps cannot programmatically enable/disable WiFi hotspot without system-level permissions. On these versions, the app will attempt to use available APIs but may require manual hotspot setup.
 - **Battery Optimization**: The app uses a foreground service to ensure continuous monitoring. Users should exempt the app from battery optimization for best results.
 - **Bluetooth Range**: Detection range depends on Bluetooth signal strength and environmental factors.
+- **Hotspot Compatibility**: LocalOnlyHotspot works on most devices running Android 8.0+. Some manufacturers may have additional restrictions.
 
 ## Project Structure
 

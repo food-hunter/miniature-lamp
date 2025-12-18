@@ -93,6 +93,9 @@ public class BluetoothMonitorService extends Service {
     public void onDestroy() {
         super.onDestroy();
         stopMonitoring();
+        if (hotspotManager != null) {
+            hotspotManager.cleanup();
+        }
         try {
             unregisterReceiver(bluetoothReceiver);
         } catch (Exception e) {
