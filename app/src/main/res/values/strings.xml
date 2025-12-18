@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bluetooth WiFi Hotspot</string>
+    <string name="scan_bluetooth">Scan Bluetooth Devices</string>
+    <string name="no_devices_found">No Bluetooth devices found</string>
+    <string name="select_target_device">Select Target Device</string>
+    <string name="monitoring_enabled">Monitoring Enabled</string>
+    <string name="monitoring_disabled">Monitoring Disabled</string>
+    <string name="target_device">Target Device: %s</string>
+    <string name="hotspot_enabled">WiFi Hotspot Enabled</string>
+    <string name="hotspot_disabled">WiFi Hotspot Disabled</string>
+    <string name="permission_required">Permissions Required</string>
+    <string name="permission_denied">Required permissions were denied. The app cannot function without them.</string>
+    <string name="bluetooth_disabled">Bluetooth is disabled. Please enable it.</string>
+    <string name="monitoring_service">Monitoring Bluetooth Device</string>
+    <string name="target_in_range">Target device is in range</string>
+    <string name="target_device_set">Target device set: %s</string>
+    <string name="hotspot_info_android8">On Android 8+, this app uses LocalOnlyHotspot which creates a temporary WiFi hotspot automatically. For full hotspot control, use Android 7 or earlier.</string>
+    <string name="hotspot_info_android10">On Android 10+, tap the notification to quickly access hotspot settings when needed.</string>
+    <string name="accessibility_service_description">Allows automated WiFi hotspot control by interacting with system settings</string>
+</resources>
