@@ -109,17 +109,15 @@ public class BluetoothMonitorService extends Service {
     }
 
     private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Bluetooth Monitoring",
-                    NotificationManager.IMPORTANCE_LOW
-            );
-            channel.setDescription("Monitors Bluetooth device proximity");
-            
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
-        }
+        NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                "Bluetooth Monitoring",
+                NotificationManager.IMPORTANCE_LOW
+        );
+        channel.setDescription("Monitors Bluetooth device proximity");
+        
+        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        notificationManager.createNotificationChannel(channel);
     }
 
     private Notification createNotification(String contentText) {
@@ -158,8 +156,7 @@ public class BluetoothMonitorService extends Service {
             scanHandler.removeCallbacks(scanRunnable);
         }
         if (bluetoothAdapter != null && bluetoothAdapter.isDiscovering()) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED ||
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
                 bluetoothAdapter.cancelDiscovery();
             }
         }
@@ -172,9 +169,7 @@ public class BluetoothMonitorService extends Service {
 
         isTargetInRange = false;
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED ||
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
             if (bluetoothAdapter.isDiscovering()) {
                 bluetoothAdapter.cancelDiscovery();
             }

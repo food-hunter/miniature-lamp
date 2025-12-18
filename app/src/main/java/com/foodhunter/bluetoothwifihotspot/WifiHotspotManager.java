@@ -18,87 +18,172 @@ public class WifiHotspotManager {
     private static final String TAG = "WifiHotspotManager";
     private final Context context;
     private final WifiManager wifiManager;
+    private final ConnectivityManager connectivityManager;
     private WifiManager.LocalOnlyHotspotReservation hotspotReservation;
 
     public WifiHotspotManager(Context context) {
         this.context = context;
         this.wifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        this.connectivityManager = (ConnectivityManager) context.getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
     }
 
     public void enableHotspot() {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Android 13+ - Use TetheringManager if available, otherwise open settings
-                enableHotspotViaSettings();
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Android 8.0-12 - Use LocalOnlyHotspot API
-                enableLocalOnlyHotspot();
-            } else {
-                // Android 7.x and below - Use reflection
-                enableHotspotViaReflection(true);
+            // For Android 16, try multiple approaches
+            
+            // Method 1: Try TetheringManager with reflection (privileged API)
+            if (tryTetheringManager(true)) {
+                Log.d(TAG, "Hotspot enabled via TetheringManager");
+                return;
             }
+            
+            // Method 2: Try shell commands with WRITE_SECURE_SETTINGS
+            if (tryShellCommand(true)) {
+                Log.d(TAG, "Hotspot enabled via shell command");
+                return;
+            }
+            
+            // Method 3: Use accessibility service to automate settings
+            if (useAccessibilityService(true)) {
+                Log.d(TAG, "Hotspot enable requested via accessibility service");
+                return;
+            }
+            
+            // Method 4: Fallback to LocalOnlyHotspot
+            enableLocalOnlyHotspot();
+            
         } catch (Exception e) {
             Log.e(TAG, "Error enabling WiFi hotspot", e);
-            // Fallback to opening settings
             openHotspotSettings();
         }
     }
 
     public void disableHotspot() {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Android 13+ - Close reservation or open settings
-                disableLocalOnlyHotspot();
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Android 8.0-12 - Stop LocalOnlyHotspot
-                disableLocalOnlyHotspot();
-            } else {
-                // Android 7.x and below - Use reflection
-                enableHotspotViaReflection(false);
+            // Try same methods for disabling
+            
+            if (tryTetheringManager(false)) {
+                Log.d(TAG, "Hotspot disabled via TetheringManager");
+                return;
             }
+            
+            if (tryShellCommand(false)) {
+                Log.d(TAG, "Hotspot disabled via shell command");
+                return;
+            }
+            
+            if (useAccessibilityService(false)) {
+                Log.d(TAG, "Hotspot disable requested via accessibility service");
+                return;
+            }
+            
+            disableLocalOnlyHotspot();
+            
         } catch (Exception e) {
             Log.e(TAG, "Error disabling WiFi hotspot", e);
         }
     }
 
-    private void enableLocalOnlyHotspot() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                wifiManager.startLocalOnlyHotspot(new WifiManager.LocalOnlyHotspotCallback() {
-                    @Override
-                    public void onStarted(WifiManager.LocalOnlyHotspotReservation reservation) {
-                        super.onStarted(reservation);
-                        hotspotReservation = reservation;
-                        WifiConfiguration config = null;
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                            config = reservation.getWifiConfiguration();
-                        }
-                        if (config != null) {
-                            Log.d(TAG, "LocalOnlyHotspot started. SSID: " + config.SSID + ", Password: " + config.preSharedKey);
-                        } else {
-                            Log.d(TAG, "LocalOnlyHotspot started (config not available on Android 13+)");
-                        }
+    private boolean tryTetheringManager(boolean enable) {
+        try {
+            Class<?> cmClass = Class.forName("android.net.ConnectivityManager");
+            Method method;
+            
+            if (enable) {
+                // Try to start tethering
+                method = cmClass.getDeclaredMethod("startTethering", int.class, boolean.class,
+                        Class.forName("android.net.ConnectivityManager$OnStartTetheringCallback"),
+                        Handler.class);
+                method.setAccessible(true);
+                
+                Object callback = java.lang.reflect.Proxy.newProxyInstance(
+                    context.getClassLoader(),
+                    new Class[] { Class.forName("android.net.ConnectivityManager$OnStartTetheringCallback") },
+                    (proxy, m, args) -> {
+                        Log.d(TAG, "Tethering callback: " + m.getName());
+                        return null;
                     }
-
-                    @Override
-                    public void onStopped() {
-                        super.onStopped();
-                        Log.d(TAG, "LocalOnlyHotspot stopped");
-                        hotspotReservation = null;
-                    }
-
-                    @Override
-                    public void onFailed(int reason) {
-                        super.onFailed(reason);
-                        Log.e(TAG, "LocalOnlyHotspot failed with reason: " + reason);
-                        // Fallback to opening settings
-                        openHotspotSettings();
-                    }
-                }, new Handler(Looper.getMainLooper()));
-            } catch (SecurityException e) {
-                Log.e(TAG, "Security exception starting LocalOnlyHotspot", e);
-                openHotspotSettings();
+                );
+                
+                method.invoke(connectivityManager, 0, false, callback, new Handler(Looper.getMainLooper()));
+                return true;
+            } else {
+                // Try to stop tethering
+                method = cmClass.getDeclaredMethod("stopTethering", int.class);
+                method.setAccessible(true);
+                method.invoke(connectivityManager, 0);
+                return true;
             }
+        } catch (Exception e) {
+            Log.d(TAG, "TetheringManager method failed", e);
+            return false;
+        }
+    }
+
+    private boolean tryShellCommand(boolean enable) {
+        try {
+            // Try using Runtime.exec with shell commands
+            // This requires WRITE_SECURE_SETTINGS permission
+            String command = enable ? 
+                "settings put global tether_dun_required 0" :
+                "settings put global wifi_ap_state 11";
+            
+            Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", command});
+            int result = process.waitFor();
+            
+            if (result == 0) {
+                Log.d(TAG, "Shell command executed successfully");
+                return true;
+            }
+        } catch (Exception e) {
+            Log.d(TAG, "Shell command failed", e);
+        }
+        return false;
+    }
+
+    private boolean useAccessibilityService(boolean enable) {
+        HotspotAccessibilityService service = HotspotAccessibilityService.getInstance();
+        if (service != null) {
+            if (enable) {
+                service.requestEnableHotspot();
+            } else {
+                service.requestDisableHotspot();
+            }
+            // Open settings to allow accessibility service to work
+            openHotspotSettings();
+            return true;
+        }
+        Log.d(TAG, "Accessibility service not available");
+        return false;
+    }
+
+    private void enableLocalOnlyHotspot() {
+        try {
+            wifiManager.startLocalOnlyHotspot(new WifiManager.LocalOnlyHotspotCallback() {
+                @Override
+                public void onStarted(WifiManager.LocalOnlyHotspotReservation reservation) {
+                    super.onStarted(reservation);
+                    hotspotReservation = reservation;
+                    Log.d(TAG, "LocalOnlyHotspot started successfully");
+                }
+
+                @Override
+                public void onStopped() {
+                    super.onStopped();
+                    Log.d(TAG, "LocalOnlyHotspot stopped");
+                    hotspotReservation = null;
+                }
+
+                @Override
+                public void onFailed(int reason) {
+                    super.onFailed(reason);
+                    Log.e(TAG, "LocalOnlyHotspot failed with reason: " + reason);
+                    openHotspotSettings();
+                }
+            }, new Handler(Looper.getMainLooper()));
+        } catch (SecurityException e) {
+            Log.e(TAG, "Security exception starting LocalOnlyHotspot", e);
+            openHotspotSettings();
         }
     }
 
@@ -107,40 +192,6 @@ public class WifiHotspotManager {
             hotspotReservation.close();
             hotspotReservation = null;
             Log.d(TAG, "LocalOnlyHotspot reservation closed");
-        }
-    }
-
-    private void enableHotspotViaReflection(boolean enable) {
-        try {
-            Method method = wifiManager.getClass().getMethod("setWifiApEnabled", WifiConfiguration.class, boolean.class);
-            method.invoke(wifiManager, null, enable);
-            Log.d(TAG, "WiFi Hotspot " + (enable ? "enabled" : "disabled") + " via reflection");
-        } catch (Exception e) {
-            Log.e(TAG, "Error controlling hotspot via reflection", e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void enableHotspotViaSettings() {
-        // For Android 13+, open settings panel for quick access
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            openSettingsPanel();
-        } else {
-            openHotspotSettings();
-        }
-    }
-
-    private void openSettingsPanel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            try {
-                Intent panelIntent = new Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY);
-                panelIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(panelIntent);
-                Log.d(TAG, "Opened Settings Panel for hotspot control");
-            } catch (Exception e) {
-                Log.e(TAG, "Error opening settings panel", e);
-                openHotspotSettings();
-            }
         }
     }
 
@@ -155,7 +206,6 @@ public class WifiHotspotManager {
         } catch (Exception e) {
             Log.e(TAG, "Error opening hotspot settings, trying alternative", e);
             try {
-                // Fallback to WiFi settings
                 Intent intent = new Intent(Settings.ACTION_WIRELESS_SETTINGS);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(intent);
@@ -167,11 +217,9 @@ public class WifiHotspotManager {
 
     public boolean isHotspotEnabled() {
         try {
-            // Try reflection first
             Method method = wifiManager.getClass().getMethod("isWifiApEnabled");
             return (Boolean) method.invoke(wifiManager);
         } catch (Exception e) {
-            // Check if LocalOnlyHotspot is active
             if (hotspotReservation != null) {
                 return true;
             }
@@ -184,3 +232,4 @@ public class WifiHotspotManager {
         disableLocalOnlyHotspot();
     }
 }
+

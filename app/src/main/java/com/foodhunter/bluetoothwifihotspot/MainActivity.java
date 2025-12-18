@@ -131,34 +131,31 @@ public class MainActivity extends AppCompatActivity {
     private boolean checkPermissions() {
         List<String> permissionsNeeded = new ArrayList<>();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-                permissionsNeeded.add(Manifest.permission.BLUETOOTH_SCAN);
-            }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                permissionsNeeded.add(Manifest.permission.BLUETOOTH_CONNECT);
-            }
-        } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-                permissionsNeeded.add(Manifest.permission.BLUETOOTH);
-            }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-                permissionsNeeded.add(Manifest.permission.BLUETOOTH_ADMIN);
-            }
+        // Bluetooth permissions for Android 16
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.BLUETOOTH_SCAN);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.BLUETOOTH_CONNECT);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.BLUETOOTH_ADVERTISE);
         }
 
+        // Location permissions
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION);
         }
-
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
+        }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                permissionsNeeded.add(Manifest.permission.POST_NOTIFICATIONS);
-            }
+        // Notification permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.POST_NOTIFICATIONS);
         }
 
         if (!permissionsNeeded.isEmpty()) {
@@ -166,7 +163,49 @@ public class MainActivity extends AppCompatActivity {
             return false;
         }
 
+        // Check special permissions that require separate intents
+        checkSpecialPermissions();
+
         return true;
+    }
+
+    private void checkSpecialPermissions() {
+        // Check SYSTEM_ALERT_WINDOW permission
+        if (!Settings.canDrawOverlays(this)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Display Over Other Apps")
+                    .setMessage("This app needs permission to display over other apps for automated hotspot control. Please grant this permission.")
+                    .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                        startActivity(intent);
+                    })
+                    .show();
+        }
+
+        // Check WRITE_SETTINGS permission
+        if (!Settings.System.canWrite(this)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Modify System Settings")
+                    .setMessage("This app needs permission to modify system settings for WiFi hotspot control. Please grant this permission.")
+                    .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
+                        startActivity(intent);
+                    })
+                    .show();
+        }
+
+        // Prompt for Accessibility Service
+        if (HotspotAccessibilityService.getInstance() == null) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Accessibility Service")
+                    .setMessage("For full automation, enable the Hotspot Accessibility Service in Settings > Accessibility.")
+                    .setPositiveButton("Open Settings", (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                        startActivity(intent);
+                    })
+                    .setNegativeButton("Later", null)
+                    .show();
+        }
     }
 
     @Override
@@ -195,8 +234,7 @@ public class MainActivity extends AppCompatActivity {
     private void enableBluetooth() {
         if (!bluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED || 
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                 startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
             }
         }
@@ -221,9 +259,7 @@ public class MainActivity extends AppCompatActivity {
         deviceListAdapter.clear();
         statusText.setText("");
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED || 
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
             Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
             if (pairedDevices != null) {
                 deviceList.addAll(pairedDevices);
@@ -231,9 +267,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED || 
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
             if (bluetoothAdapter.isDiscovering()) {
                 bluetoothAdapter.cancelDiscovery();
             }
@@ -248,8 +282,7 @@ public class MainActivity extends AppCompatActivity {
         deviceListAdapter.clear();
         for (BluetoothDevice device : deviceList) {
             String deviceName = "Unknown Device";
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED || 
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                 deviceName = device.getName() != null ? device.getName() : "Unknown Device";
             }
             deviceListAdapter.add(deviceName + "\n" + device.getAddress());
@@ -259,8 +292,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void selectTargetDevice(BluetoothDevice device) {
         String deviceName = "Unknown Device";
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED || 
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
             deviceName = device.getName() != null ? device.getName() : "Unknown Device";
         }
 
@@ -279,11 +311,7 @@ public class MainActivity extends AppCompatActivity {
         serviceIntent.putExtra("device_address", device.getAddress());
         serviceIntent.putExtra("device_name", deviceName);
         
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
-        }
+        startForegroundService(serviceIntent);
     }
 
     private void loadTargetDevice() {
