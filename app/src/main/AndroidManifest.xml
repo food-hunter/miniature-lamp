@@ -75,7 +75,7 @@
             android:name=".BluetoothMonitorService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice|specialUse" />
+            android:foregroundServiceType="connectedDevice" />
             
         <service
             android:name=".HotspotAccessibilityService"

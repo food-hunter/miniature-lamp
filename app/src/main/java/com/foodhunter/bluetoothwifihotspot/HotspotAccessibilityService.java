@@ -13,7 +13,7 @@ import java.util.List;
 public class HotspotAccessibilityService extends AccessibilityService {
 
     private static final String TAG = "HotspotAccessibilityService";
-    private static HotspotAccessibilityService instance;
+    private static volatile HotspotAccessibilityService instance;
     private boolean shouldEnableHotspot = false;
     private boolean shouldDisableHotspot = false;
 
@@ -132,10 +132,22 @@ public class HotspotAccessibilityService extends AccessibilityService {
 
         List<AccessibilityNodeInfo> nodes = node.findAccessibilityNodeInfosByText(text);
         if (nodes != null && !nodes.isEmpty()) {
+            AccessibilityNodeInfo result = null;
             for (AccessibilityNodeInfo n : nodes) {
                 if (n.isClickable() || n.isCheckable()) {
-                    return n;
+                    result = n;
+                    // Recycle all other nodes
+                    for (AccessibilityNodeInfo other : nodes) {
+                        if (other != result) {
+                            other.recycle();
+                        }
+                    }
+                    return result;
                 }
+            }
+            // If no clickable node found, recycle all
+            for (AccessibilityNodeInfo n : nodes) {
+                n.recycle();
             }
         }
 

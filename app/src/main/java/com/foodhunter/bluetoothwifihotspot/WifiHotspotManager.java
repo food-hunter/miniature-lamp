@@ -19,7 +19,7 @@ public class WifiHotspotManager {
     private final Context context;
     private final WifiManager wifiManager;
     private final ConnectivityManager connectivityManager;
-    private WifiManager.LocalOnlyHotspotReservation hotspotReservation;
+    private volatile WifiManager.LocalOnlyHotspotReservation hotspotReservation;
 
     public WifiHotspotManager(Context context) {
         this.context = context;
@@ -125,8 +125,8 @@ public class WifiHotspotManager {
             // Try using Runtime.exec with shell commands
             // This requires WRITE_SECURE_SETTINGS permission
             String command = enable ? 
-                "settings put global tether_dun_required 0" :
-                "settings put global wifi_ap_state 11";
+                "settings put global tether_dun_required 0 && svc wifi enable_softap 0" :
+                "svc wifi disable_softap";
             
             Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", command});
             int result = process.waitFor();
