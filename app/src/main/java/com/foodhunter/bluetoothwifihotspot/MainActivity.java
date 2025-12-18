@@ -50,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.class, BluetoothDevice.EXTRA_DEVICE);
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 if (device != null && !deviceList.contains(device)) {
                     deviceList.add(device);
                     updateDeviceList();
@@ -273,7 +273,7 @@ public class MainActivity extends AppCompatActivity {
         targetDeviceText.setText(getString(R.string.target_device, deviceName));
         targetDeviceText.setVisibility(View.VISIBLE);
 
-        Toast.makeText(this, "Target device set: " + deviceName, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.target_device_set, deviceName), Toast.LENGTH_SHORT).show();
 
         Intent serviceIntent = new Intent(this, BluetoothMonitorService.class);
         serviceIntent.putExtra("device_address", device.getAddress());

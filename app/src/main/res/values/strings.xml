@@ -14,4 +14,5 @@
     <string name="bluetooth_disabled">Bluetooth is disabled. Please enable it.</string>
     <string name="monitoring_service">Monitoring Bluetooth Device</string>
     <string name="target_in_range">Target device is in range</string>
+    <string name="target_device_set">Target device set: %s</string>
 </resources>
